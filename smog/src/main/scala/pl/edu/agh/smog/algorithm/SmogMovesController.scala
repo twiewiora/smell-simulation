@@ -22,12 +22,31 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
     grid = Grid.empty(bufferZone)
     var foraminiferaCount = 0L
     var algaeCount = 0L
+
+    val obstacles = Array.ofDim[Boolean](config.gridSize, config.gridSize)
+
+    for (((startX, startY), (lenX, lenY)) <- Array.fill(10){((config.gridSize * random.nextDouble(), config.gridSize * random.nextDouble()), (config.gridSize * random.nextDouble() / 2, config.gridSize * random.nextDouble() / 6))}){
+
+      for {
+        x <- startX.toInt until startX.toInt + lenX.toInt
+        y <- startY.toInt until startY.toInt + lenY.toInt
+        if x > 0 && y > 0 && x < config.gridSize - 1 && y < config.gridSize - 1
+      }{
+        obstacles(x)(y) = true
+      }
+    }
+
+
+
     for {
       x <- 0 until config.gridSize
       y <- 0 until config.gridSize
       if x != 0 && y != 0 && x != config.gridSize - 1 && y != config.gridSize - 1
     } {
-      if (random.nextDouble() < config.spawnChance) {
+      if (obstacles(x)(y)){
+        grid.cells(x)(y) = Obstacle
+      }
+      else if (random.nextDouble() < config.spawnChance) {
         grid.cells(x)(y) =
           if (random.nextDouble() < config.foraminiferaSpawnChance) {
             foraminiferaCount += 1
