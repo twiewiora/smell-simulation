@@ -6,12 +6,13 @@ from itertools import groupby, product
 from matplotlib import pyplot as plt
 
 # general settings
-PREFIXES = ['formin', 'fortwist', 'torch']
+PREFIXES = ['formin', 'fortwist', 'torch', 'smog']
 VARIANTS = ['default', 'variant1', 'variant2', 'variant3']
 WORKERS_ROOT_MAX = 4
 SAMPLES = 30
 ITERATIONS = {
     'formin': 1000,
+    'smog': 1000,
     'fortwist': 1000,
     'torch': 200
 }

@@ -122,6 +122,21 @@ if [[ "$@" =~ ^(.+ )?formin( .+)?$ ]]; then
     run_variants
 fi
 
+
+#===============================================================================
+# smog
+#===============================================================================
+if [[ "$@" =~ ^(.+ )?formin( .+)?$ ]]; then
+    PREFIX=smog
+    ITERATIONS_NUMBER=1000
+    GRID_SIZE_TOTAL=120
+    PARAMS_DEFAULT="-D${PREFIX}.config.foraminiferaReproductionCost=0.5"
+    PARAMS_VARIANT_1="-D${PREFIX}.config.foraminiferaReproductionCost=0.5 -D${PREFIX}.config.algaeEnergeticCapacity=0.45"  # base 0.6, foraminifera need more food
+    PARAMS_VARIANT_2="-D${PREFIX}.config.foraminiferaReproductionCost=0.5 -D${PREFIX}.config.algaeReproductionFrequency=5"  # from 2, 2.5 times slower (it is actually delay)
+    PARAMS_VARIANT_3="-D${PREFIX}.config.foraminiferaReproductionCost=0.5 -D${PREFIX}.config.foraminiferaLifeActivityCost=0.5"  # from 0.1, foraminifera need much more food
+    run_variants
+fi
+
 #===============================================================================
 # fortwist
 #===============================================================================
