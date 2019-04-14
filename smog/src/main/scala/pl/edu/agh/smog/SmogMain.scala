@@ -39,7 +39,8 @@ object SmogMain extends LazyLogging {
     cell match {
       case AlgaeCell(_, _) => new Color(0, 128, 0)
       case ForaminiferaCell(_, _, _) => new Color(139, 69, 19)
-      case EmptyCell(_) => new Color(0, 0, (255.0 * (smellValue - minSmellValue) / (maxSmellValue - minSmellValue)).toInt)
+//      case EmptyCell(_) => new Color(0, 0, 255)
+      case EmptyCell(_) => new Color(if(smellValue < 0) 0 else (smellValue / maxSmellValue * 255.0).toInt, 0, if(smellValue > 0) 0 else (smellValue / minSmellValue * 255.0).toInt)
       case _ => Color.WHITE
     }
   }
