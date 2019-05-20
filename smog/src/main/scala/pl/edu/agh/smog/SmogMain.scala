@@ -38,8 +38,8 @@ object SmogMain extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
     import pl.edu.agh.xinuk.config.ValueReaders._
-    new Simulation[SmogConfig](configPrefix, metricHeaders, SmogConflictResolver,
-      WindPropagation.calculateSmellAddends)(new SmogMovesController(_)(_),
+    new SmogSimulation[SmogConfig](configPrefix, metricHeaders, SmogConflictResolver,
+      WindPropagation.calculateSmellAddends)((tuples, smogConfig) => new SmogMovesController(tuples)(smogConfig),
       {
         case Obstacle => Color.WHITE
         case cell: SmellingCell => cellToColor(cell)

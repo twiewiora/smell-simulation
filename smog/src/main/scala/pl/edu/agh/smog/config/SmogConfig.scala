@@ -16,5 +16,8 @@ final case class SmogConfig(
                              signalSpeedRatio: Int,
                              iterationsNumber: Long,
 
-                             smogInitialSignal: Signal
+                             smogInitialSignal: Signal,
+                             windInitialSignal: Signal,
+                             crossBendFactor: Double,
+                             straightBendFactor: Double,
                            ) extends XinukConfig
