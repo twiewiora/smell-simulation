@@ -41,6 +41,10 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
       }
     }
     grid.cells(1)(1) = SmogCell.create(config.smogInitialSignal)
+    for (y <- 1 until config.gridSize - 1){
+      grid.cells(y)(1) = WindCell.create(config.windInitialSignal)
+    }
+//    grid.cells(config.gridSize - 1)(config.gridSize - 1) = WindCell.create(config.windInitialSignal)
 
     val metrics = SmogMetrics.empty()
     (grid, metrics)
@@ -50,7 +54,10 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
     val newGrid = Grid.empty(bufferZone)
 
     def copyCells(x: Int, y: Int, cell: GridPart): Unit = {
-      newGrid.cells(x)(y) = cell
+      newGrid.cells(x)(y) = cell match {
+        case WindCell(smell) => WindCell.create(config.windInitialSignal)
+        case _ => cell
+      }
     }
 
     def moveCells(x: Int, y: Int, cell: GridPart): Unit = {
@@ -75,6 +82,7 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
       y <- 0 until config.gridSize
     } yield (x, y, grid.cells(x)(y))).partition({
       case (_, _, SmogCell(_)) => true
+      case (_, _, WindCell(_)) => false
       case (_, _, _) => false
     })
 

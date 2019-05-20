@@ -1,7 +1,7 @@
 package pl.edu.agh.smog.model.parallel
 
 import pl.edu.agh.smog.config.SmogConfig
-import pl.edu.agh.smog.model.SmogCell
+import pl.edu.agh.smog.model.{SmogCell, WindCell}
 import pl.edu.agh.smog.simulation.SmogMetrics
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.parallel.ConflictResolver
@@ -22,6 +22,8 @@ object SmogConflictResolver extends ConflictResolver[SmogConfig] {
         (SmogCell(currentSmell + incomingSmell), SmogMetrics.empty())
       case (SmogCell(currentSmell), SmogCell(incomingSmell)) =>
         (SmogCell(currentSmell + incomingSmell), SmogMetrics.empty())
+      case (WindCell(currentSmell), _) =>
+        (WindCell(currentSmell), SmogMetrics.empty())
       case (x, y) => throw new UnsupportedOperationException(s"Unresolved conflict: $x with $y")
     }
   }
