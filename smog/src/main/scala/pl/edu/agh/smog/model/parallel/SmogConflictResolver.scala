@@ -14,16 +14,14 @@ object SmogConflictResolver extends ConflictResolver[SmogConfig] {
     (current, incoming) match {
       case (Obstacle, _) =>
         (Obstacle, SmogMetrics.empty())
-      case (EmptyCell(currentSmell), EmptyCell(incomingSmell)) =>
-        (EmptyCell(currentSmell + incomingSmell), SmogMetrics.empty())
-      case (SmogCell(currentSmell), EmptyCell(incomingSmell)) =>
-        (SmogCell(currentSmell + incomingSmell), SmogMetrics.empty())
-      case (EmptyCell(currentSmell), SmogCell(incomingSmell)) =>
-        (SmogCell(currentSmell + incomingSmell), SmogMetrics.empty())
-      case (SmogCell(currentSmell), SmogCell(incomingSmell)) =>
-        (SmogCell(currentSmell + incomingSmell), SmogMetrics.empty())
-      case (WindCell(currentSmell), _) =>
+      case (EmptyCell(currentSmell), incomingCell) =>
+        (incomingCell.withSmell(incomingCell.smell + currentSmell), SmogMetrics.empty())
+      case (currentCell: SmellingCell, EmptyCell(incomingSmell)) =>
+        (currentCell.withSmell(currentCell.smell + incomingSmell), SmogMetrics.empty())
+      case (WindCell(currentSmell), SmogCell(_, _)) =>
         (WindCell(currentSmell), SmogMetrics.empty())
+      case (SmogCell(currentSmell, currentIntensity), another@SmogCell(incomingSmell, incomingIntensity)) =>
+        (SmogCell(currentSmell + incomingSmell, currentIntensity + incomingIntensity), SmogMetrics.empty())
       case (x, y) => throw new UnsupportedOperationException(s"Unresolved conflict: $x with $y")
     }
   }
