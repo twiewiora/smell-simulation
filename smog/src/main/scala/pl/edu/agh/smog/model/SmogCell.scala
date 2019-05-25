@@ -16,13 +16,17 @@ trait SmogAccesible[+T <: GridPart] {
 
 object SmogAccesible {
 
+  def unapply(arg: SmogCell)(implicit config: SmogConfig): SmogAccesible[SmogCell] =
+    (intensity: Double) => SmogCell(intensity + arg.intensity, arg.smellWith(config.smogInitialSignal))
+
   def unapply(arg: EmptyCell)(implicit config: SmogConfig): SmogAccesible[SmogCell] =
-    (intensity: Double) => SmogCell(intensity, arg.smellWith(config.smogInitialSignal))
+    (intensity: Double) => SmogCell(intensity - config.smogAttenuationFactor, arg.smellWith(config.smogInitialSignal))
 
   def unapply(arg: BufferCell)(implicit config: SmogConfig): SmogAccesible[BufferCell] =
     (intensity: Double) => BufferCell(SmogCell(intensity, arg.smellWith(config.smogInitialSignal)))
 
   def unapply(arg: GridPart)(implicit config: SmogConfig): Option[SmogAccesible[GridPart]] = arg match {
+    case cell: SmogCell => Some(unapply(cell))
     case cell: EmptyCell => Some(unapply(cell))
     case cell: BufferCell => Some(unapply(cell))
     case _ => None

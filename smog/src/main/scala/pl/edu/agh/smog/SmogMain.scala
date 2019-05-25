@@ -41,7 +41,7 @@ object SmogMain extends LazyLogging {
       WindPropagation.calculateSmellAddends)((tuples, smogConfig) => new SmogMovesController(tuples)(smogConfig),
       {
         case Obstacle => Color.WHITE
-        case cell: SmogCell => Color.GRAY
+        case _: SmogCell => Color.GRAY
         case cell: SmellingCell => cellToColor(cell)
       }
     ).start()

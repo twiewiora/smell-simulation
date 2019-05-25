@@ -20,7 +20,7 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
 
   private val obstacles = Array.ofDim[Boolean](config.gridSize, config.gridSize)
 
-  private var chimneyLocation = (0, 0)
+  private var chimneyLocations : List[(Int,Int)] = List()
 
   override def initialGrid: (Grid, SmogMetrics) = {
     grid = Grid.empty(bufferZone)
@@ -53,9 +53,13 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
     }
 
     // Chimney
-    do {
-      chimneyLocation = (random.nextInt(config.gridSize - 1), random.nextInt(config.gridSize - 1))
-    } while (obstacles(chimneyLocation._1)(chimneyLocation._2))
+    for (_ <- 0 until config.chimneyAmount) {
+      var chimneyLocation : (Int, Int) = (0, 0)
+      do {
+        chimneyLocation = (random.nextInt(config.gridSize - 11) + 10, (random.nextInt(config.gridSize - 11) + 10) / 2)
+      } while (obstacles(chimneyLocation._1)(chimneyLocation._2))
+      chimneyLocations = chimneyLocations :+ chimneyLocation
+    }
 
     val metrics = SmogMetrics.empty()
     (grid, metrics)
@@ -66,7 +70,9 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
 
     def makeMove(x: Int, y: Int): Unit = {
       if (iteration % config.chimneyFrequency == 0) {
-        pollute(chimneyLocation._1, chimneyLocation._2)
+        for(chimneyLocation <- chimneyLocations) {
+          pollute(chimneyLocation._1, chimneyLocation._2)
+        }
       }
       grid.cells(x)(y) match {
         case Obstacle =>
@@ -78,7 +84,11 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
         case WindCell(_) =>
             newGrid.cells(x)(y) = WindAccessible.unapply(EmptyCell.Instance).withWind()
         case cell: SmogCell =>
-          moveSmog(cell, x, y)
+          if (cell.intensity <= 0) {
+            newGrid.cells(x)(y) = EmptyCell(cell.smell)
+          } else {
+            moveSmog(cell, x, y)
+          }
       }
     }
 
@@ -131,7 +141,7 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
         val neighbour = Grid.neighbourCellCoordinates(chimneyX, chimneyY)
         for ((i, j) <- neighbour) {
           if (!obstacles(i)(j)) {
-            grid.cells(i)(j) = SmogAccesible.unapply(EmptyCell.Instance).withSmog(10)
+            grid.cells(i)(j) = SmogAccesible.unapply(EmptyCell.Instance).withSmog(config.smogStartIntensity)
           }
         }
       }
