@@ -6,8 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import pl.edu.agh.smog.algorithm.SmogMovesController
 import pl.edu.agh.smog.config.SmogConfig
 import pl.edu.agh.smog.model.parallel.SmogConflictResolver
-import pl.edu.agh.smog.model.WindPropagation
-import pl.edu.agh.xinuk.Simulation
+import pl.edu.agh.smog.model.{SmogCell, WindPropagation}
 import pl.edu.agh.xinuk.model._
 
 object SmogMain extends LazyLogging {
@@ -42,6 +41,7 @@ object SmogMain extends LazyLogging {
       WindPropagation.calculateSmellAddends)((tuples, smogConfig) => new SmogMovesController(tuples)(smogConfig),
       {
         case Obstacle => Color.WHITE
+        case _: SmogCell => Color.GRAY
         case cell: SmellingCell => cellToColor(cell)
       }
     ).start()

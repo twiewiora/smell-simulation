@@ -16,6 +16,11 @@ final case class SmogConfig(
                              signalSpeedRatio: Int,
                              iterationsNumber: Long,
 
+                             chimneyFrequency: Int,
+                             chimneyAmount: Int,
+                             smogAttenuationFactor: Int,
+                             smogStartIntensity: Int,
+
                              smogInitialSignal: Signal,
                              windInitialSignal: Signal,
                              crossBendFactor: Double,

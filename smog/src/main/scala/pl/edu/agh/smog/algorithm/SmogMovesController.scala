@@ -1,5 +1,8 @@
 package pl.edu.agh.smog.algorithm
 
+import com.avsystem.commons
+import com.avsystem.commons.SharedExtensions._
+import com.avsystem.commons.misc.Opt
 import pl.edu.agh.smog.config.SmogConfig
 import pl.edu.agh.smog.model._
 import pl.edu.agh.smog.simulation.SmogMetrics
@@ -15,11 +18,14 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
 
   private val random = new Random(System.nanoTime())
 
+  private val obstacles = Array.ofDim[Boolean](config.gridSize, config.gridSize)
+
+  private var chimneyLocations : List[(Int,Int)] = List()
+
   override def initialGrid: (Grid, SmogMetrics) = {
     grid = Grid.empty(bufferZone)
 
-    val obstacles = Array.ofDim[Boolean](config.gridSize, config.gridSize)
-
+    // Obstacles
     for (((startX, startY), (lenX, lenY)) <- Array.fill(10){((config.gridSize * random.nextDouble(), config.gridSize * random.nextDouble()), (config.gridSize * random.nextDouble() / 2, config.gridSize * random.nextDouble() / 6))}){
 
       for {
@@ -40,11 +46,20 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
         grid.cells(x)(y) = Obstacle
       }
     }
-    grid.cells(1)(1) = SmogCell.create(config.smogInitialSignal)
+
+    // Wind
     for (y <- 1 until config.gridSize - 1){
-      grid.cells(y)(1) = WindCell.create(config.windInitialSignal)
+      grid.cells(y)(1) = WindAccessible.unapply(EmptyCell.Instance).withWind()
     }
-//    grid.cells(config.gridSize - 1)(config.gridSize - 1) = WindCell.create(config.windInitialSignal)
+
+    // Chimney
+    for (_ <- 0 until config.chimneyAmount) {
+      var chimneyLocation : (Int, Int) = (0, 0)
+      do {
+        chimneyLocation = (random.nextInt(config.gridSize - 11) + 10, (random.nextInt(config.gridSize - 11) + 10) / 2)
+      } while (obstacles(chimneyLocation._1)(chimneyLocation._2))
+      chimneyLocations = chimneyLocations :+ chimneyLocation
+    }
 
     val metrics = SmogMetrics.empty()
     (grid, metrics)
@@ -53,41 +68,90 @@ final class SmogMovesController(bufferZone: TreeSet[(Int, Int)])(implicit config
   override def makeMoves(iteration: Long, grid: Grid): (Grid, SmogMetrics) = {
     val newGrid = Grid.empty(bufferZone)
 
-    def copyCells(x: Int, y: Int, cell: GridPart): Unit = {
-      newGrid.cells(x)(y) = cell match {
-        case WindCell(smell) => WindCell.create(config.windInitialSignal)
-        case _ => cell
+    def makeMove(x: Int, y: Int): Unit = {
+      if (iteration % config.chimneyFrequency == 0) {
+        for(chimneyLocation <- chimneyLocations) {
+          pollute(chimneyLocation._1, chimneyLocation._2)
+        }
+      }
+      grid.cells(x)(y) match {
+        case Obstacle =>
+          newGrid.cells(x)(y) = Obstacle
+        case cell@(EmptyCell(_) | BufferCell(_)) =>
+          if (isEmptyIn(newGrid)(x, y)) {
+            newGrid.cells(x)(y) = cell
+          }
+        case WindCell(_) =>
+            newGrid.cells(x)(y) = WindAccessible.unapply(EmptyCell.Instance).withWind()
+        case cell: SmogCell =>
+          if (cell.intensity <= 0) {
+            newGrid.cells(x)(y) = EmptyCell(cell.smell)
+          } else {
+            moveSmog(cell, x, y)
+          }
       }
     }
 
-    def moveCells(x: Int, y: Int, cell: GridPart): Unit = {
-      val destination = (x - random.nextInt(2) + 1, y - random.nextInt(2) + 1)
-      val vacatedCell = EmptyCell(cell.smell)
-      val occupiedCell = SmogCell.create(config.smogInitialSignal)
-
-      newGrid.cells(destination._1)(destination._2) match {
-        case EmptyCell(_) =>
-          newGrid.cells(x)(y) = vacatedCell
-          newGrid.cells(destination._1)(destination._2) = occupiedCell
-        case BufferCell(EmptyCell(_)) =>
-          newGrid.cells(x)(y) = vacatedCell
-          newGrid.cells(destination._1)(destination._2) = BufferCell(occupiedCell)
-        case _ =>
-          newGrid.cells(x)(y) = occupiedCell
+    def isEmptyIn(grid: Grid)(i: Int, j: Int): Boolean = {
+      grid.cells(i)(j) match {
+        case EmptyCell(_) | BufferCell(EmptyCell(_)) => true
+        case _ => false
       }
     }
 
-    val (dynamicCells, staticCells) = (for {
+    def moveSmog(cell: SmogCell, x: Int, y: Int): Unit = {
+      val destinations = calculatePossibleDestinations(cell, x, y, grid)
+      val destination = selectDestinationCell(destinations, newGrid)
+      destination match {
+        case Opt((i, j, SmogAccesible(destination))) =>
+          newGrid.cells(i)(j) = destination.withSmog(cell.intensity)
+          val vacated = EmptyCell(cell.smell)
+          newGrid.cells(x)(y) = vacated
+        case Opt((i, j, inaccessibleDestination)) =>
+          throw new RuntimeException(s"Smog selected inaccessible destination ($i,$j): $inaccessibleDestination")
+        case Opt.Empty =>
+          newGrid.cells(x)(y) = cell.copy(cell.intensity)
+      }
+    }
+
+    def calculatePossibleDestinations(cell: SmogCell, x: Int, y: Int, grid: Grid): Iterator[(Int, Int, GridPart)] = {
+      val neighbourCellCoordinates = Grid.neighbourCellCoordinates(x, y)
+      Grid.SubcellCoordinates
+        .map { case (i, j) => cell.smell(i)(j) }
+        .zipWithIndex
+        .sorted(implicitly[Ordering[(Signal, Int)]])
+        .iterator
+        .map { case (_, idx) =>
+          val (i, j) = neighbourCellCoordinates(idx)
+          (i, j, grid.cells(i)(j))
+        }
+    }
+
+    def selectDestinationCell(possibleDestinations: Iterator[(Int, Int, GridPart)], newGrid: Grid): commons.Opt[(Int, Int, GridPart)] = {
+      possibleDestinations
+        .map { case (i, j, current) => (i, j, current, newGrid.cells(i)(j)) }
+        .collectFirstOpt {
+          case (i, j, currentCell@SmogAccesible(_), SmogAccesible(_)) =>
+            (i, j, currentCell)
+        }
+    }
+
+    def pollute(chimneyX: Int, chimneyY: Int): Unit = {
+      if (!obstacles(chimneyX)(chimneyY)) {
+        val neighbour = Grid.neighbourCellCoordinates(chimneyX, chimneyY)
+        for ((i, j) <- neighbour) {
+          if (!obstacles(i)(j)) {
+            grid.cells(i)(j) = SmogAccesible.unapply(EmptyCell.Instance).withSmog(config.smogStartIntensity)
+          }
+        }
+      }
+    }
+
+    for {
       x <- 0 until config.gridSize
       y <- 0 until config.gridSize
-    } yield (x, y, grid.cells(x)(y))).partition({
-      case (_, _, SmogCell(_)) => true
-      case (_, _, WindCell(_)) => false
-      case (_, _, _) => false
-    })
+    } makeMove(x, y)
 
-    staticCells.foreach({ case (x, y, cell) => copyCells(x, y, cell) })
-    dynamicCells.foreach({ case (x, y, cell) => moveCells(x, y, cell) })
     (newGrid, SmogMetrics.empty())
   }
 }
